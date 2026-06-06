@@ -52,18 +52,33 @@ function detectColumnType(values) {
 // 1. GET /api/schema - Returns available tables and their column definitions
 app.get('/api/schema', async (req, res) => {
   try {
-    // Get all tables in SQLite
-    const tables = await db.raw("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'");
+    const isPostgres = db.client.config.client === 'pg';
+    let tables = [];
+    
+    if (isPostgres) {
+      const result = await db.raw("SELECT tablename FROM pg_catalog.pg_tables WHERE schemaname = 'public'");
+      tables = result.rows.map(r => r.tablename);
+    } else {
+      const result = await db.raw("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'");
+      tables = result.map(r => r.name);
+    }
+
     const schema = {};
 
-    for (const table of tables) {
-      const tableName = table.name;
-      // Get column info
-      const cols = await db.raw(`PRAGMA table_info('${tableName}')`);
-      schema[tableName] = cols.map(c => ({
-        name: c.name,
-        type: c.type.toLowerCase()
-      }));
+    for (const tableName of tables) {
+      if (isPostgres) {
+        const result = await db.raw("SELECT column_name, data_type FROM information_schema.columns WHERE table_name = ?", [tableName]);
+        schema[tableName] = result.rows.map(c => ({
+          name: c.column_name,
+          type: c.data_type.toLowerCase()
+        }));
+      } else {
+        const cols = await db.raw(`PRAGMA table_info('${tableName}')`);
+        schema[tableName] = cols.map(c => ({
+          name: c.name,
+          type: c.type.toLowerCase()
+        }));
+      }
     }
 
     res.json(schema);
@@ -176,8 +191,15 @@ app.post('/api/upload-csv', upload.single('file'), async (req, res) => {
       let tableName = req.file.originalname.replace('.csv', '').replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
       if (!tableName) tableName = 'table_' + Date.now();
       
-      // Prevent overwriting existing mock tables
-      const existing = await db.raw(`SELECT name FROM sqlite_master WHERE type='table' AND name=?`, [tableName]);
+      // Prevent overwriting existing tables
+      const isPostgres = db.client.config.client === 'pg';
+      let existing = [];
+      if (isPostgres) {
+        const res = await db.raw("SELECT tablename FROM pg_catalog.pg_tables WHERE schemaname = 'public' AND tablename = ?", [tableName]);
+        existing = res.rows;
+      } else {
+        existing = await db.raw("SELECT name FROM sqlite_master WHERE type='table' AND name=?", [tableName]);
+      }
       if (existing.length > 0) {
         tableName = tableName + '_' + Date.now();
       }
