@@ -4,7 +4,6 @@ import GroupByClause from './GroupByClause';
 import OrderLimit from './OrderLimit';
 import ComplexQueryPicker from './ComplexQueryPicker';
 import SqlHighlight from './SqlHighlight';
-import { DB_SCHEMA } from '../data/schema';
 import { buildSQL } from '../utils/queryUtils';
 
 /**
@@ -12,13 +11,13 @@ import { buildSQL } from '../utils/queryUtils';
  * Props: state fields + callbacks from App.
  */
 function QueryBuilder({
-  table, selectedColumns, filters,
+  table, schema, selectedColumns, filters,
   orderField, orderDirection, limit,
   groupByField, aggregateFunc, aggregateField,
   onTableChange, onColumnToggle, onSelectAll, onDeselectAll,
   onFiltersChange, onFieldChange, onRunQuery, onReset, onComplexResults,
 }) {
-  const columns = table ? DB_SCHEMA[table] : [];
+  const columns = table && schema[table] ? schema[table] : [];
 
   let previewSQL = 'Select a table and columns to preview your query...';
   if (table && selectedColumns.size > 0) {
@@ -66,9 +65,9 @@ function QueryBuilder({
           <label className="form-label">FROM (Select Table)</label>
           <select className="form-select" value={table} onChange={(e) => onTableChange(e.target.value)}>
             <option value="">Choose a table...</option>
-            <option value="employees">employees</option>
-            <option value="departments">departments</option>
-            <option value="products">products</option>
+            {Object.keys(schema).map(t => (
+              <option key={t} value={t}>{t}</option>
+            ))}
           </select>
         </div>
 

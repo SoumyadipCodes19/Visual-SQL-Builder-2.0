@@ -2,11 +2,10 @@ import { useState, useEffect } from 'react';
 import Header from './components/Header';
 import QueryBuilder from './components/QueryBuilder';
 import ResultsPanel from './components/ResultsPanel';
-import ERDiagram from './components/ERDiagram';
-import QueryHistory from './components/QueryHistory';
 import ReportsSection from './components/ReportsSection';
-import { DB_SCHEMA, MOCK_DATA } from './data/schema';
-import { buildSQL, processMockData } from './utils/queryUtils';
+import { buildSQL } from './utils/queryUtils';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 const INITIAL_STATE = {
   table: '',
@@ -21,6 +20,7 @@ const INITIAL_STATE = {
 };
 
 function App() {
+  const [schema, setSchema] = useState({});
   const [table, setTable] = useState('');
   const [selectedColumns, setSelectedColumns] = useState(new Set());
   const [filters, setFilters] = useState(INITIAL_STATE.filters);
@@ -34,6 +34,20 @@ function App() {
   const [results, setResults] = useState({ visible: false, sql: '', headers: [], rows: [] });
   const [queryHistory, setQueryHistory] = useState([]);
   const [showERD, setShowERD] = useState(false);
+
+  const fetchSchema = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/schema`);
+      const data = await res.json();
+      setSchema(data);
+    } catch (err) {
+      console.error("Failed to fetch schema:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchSchema();
+  }, []);
 
   // --- Handlers ---
 
@@ -57,8 +71,8 @@ function App() {
   }
 
   function handleSelectAll() {
-    if (!table) return;
-    const all = new Set(DB_SCHEMA[table].map((c) => c.name));
+    if (!table || !schema[table]) return;
+    const all = new Set(schema[table].map((c) => c.name));
     setSelectedColumns(all);
   }
 
@@ -78,25 +92,36 @@ function App() {
     setters[field]?.(value);
   }
 
-  function handleRunQuery() {
+  async function handleRunQuery() {
     if (!table) return;
-    const state = { table, selectedColumns, filters, orderField, orderDirection, limit, groupByField, aggregateFunc, aggregateField };
-    const sql = buildSQL(state);
-    const rows = processMockData(state, MOCK_DATA);
+    const state = { table, selectedColumns: Array.from(selectedColumns), filters, orderField, orderDirection, limit, groupByField, aggregateFunc, aggregateField };
     
-    // Headers are derived from selected columns + aggregate column
-    const headers = Array.from(selectedColumns);
-    if (aggregateFunc && aggregateField) {
-      headers.push(`${aggregateFunc.toLowerCase()}_${aggregateField}`);
-    }
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/query`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(state),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Query failed');
 
-    setResults({ visible: true, sql, headers, rows });
-    
-    // Add to history (limit 5)
-    setQueryHistory(prev => {
-      const newEntry = { sql, time: new Date().toLocaleTimeString() };
-      return [newEntry, ...prev].slice(0, 5);
-    });
+      // Headers are derived from selected columns + aggregate column
+      const headers = Array.from(selectedColumns);
+      if (aggregateFunc && aggregateField) {
+        headers.push(`${aggregateFunc.toLowerCase()}_${aggregateField}`);
+      }
+
+      setResults({ visible: true, sql: data.sql, headers, rows: data.rows });
+      
+      // Add to history (limit 5)
+      setQueryHistory(prev => {
+        const newEntry = { sql: data.sql, time: new Date().toLocaleTimeString() };
+        return [newEntry, ...prev].slice(0, 5);
+      });
+    } catch (err) {
+      console.error(err);
+      alert('Error running query: ' + err.message);
+    }
   }
 
   function handleReset() {
@@ -120,14 +145,16 @@ function App() {
     <>
       <Header 
         onToggleERD={() => setShowERD(!showERD)} 
+        onSchemaRefresh={fetchSchema}
       />
       <main className="main-container">
-        {showERD && <ERDiagram />}
+        {showERD && <ERDiagram schema={schema} />}
         <div className="grid-container">
           {/* Left Sidebar */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
             <QueryBuilder
               table={table}
+              schema={schema}
               selectedColumns={selectedColumns}
               filters={filters}
               onFiltersChange={setFilters}

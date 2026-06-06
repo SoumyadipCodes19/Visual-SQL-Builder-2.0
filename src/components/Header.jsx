@@ -1,7 +1,9 @@
 /**
  * Header – simple site header with feature toggles.
  */
-function Header({ onToggleERD }) {
+import DatasetManager from './DatasetManager';
+
+function Header({ onToggleERD, onSchemaRefresh }) {
   return (
     <header className="header">
       <div className="header-container" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -31,6 +33,7 @@ function Header({ onToggleERD }) {
           </div>
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>
+          <DatasetManager onUploadSuccess={onSchemaRefresh} />
           <button 
             onClick={onToggleERD} 
             style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', background: 'transparent', cursor: 'pointer', fontWeight: 'bold' }}

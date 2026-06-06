@@ -1,11 +1,9 @@
 import React from 'react';
-import { DB_SCHEMA } from '../data/schema';
-
 /**
  * ERDiagram – visually represents the database schema and relationships.
  */
-function ERDiagram() {
-  const tables = Object.keys(DB_SCHEMA);
+function ERDiagram({ schema = {} }) {
+  const tables = Object.keys(schema);
   
   return (
     <div className="card" style={{ marginBottom: '24px' }}>
@@ -43,7 +41,7 @@ function ERDiagram() {
                 {tableName.toUpperCase()}
              </div>
              <div style={{ padding: '0 12px 12px 12px' }}>
-                {DB_SCHEMA[tableName].map((col, idx) => {
+                {schema[tableName].map((col, idx) => {
                    const isPK = col.name === 'id';
                    const isFK = col.name.endsWith('_id');
                    return (
@@ -51,7 +49,7 @@ function ERDiagram() {
                         display: 'flex', 
                         justifyContent: 'space-between', 
                         padding: '8px 0', 
-                        borderBottom: idx === DB_SCHEMA[tableName].length - 1 ? 'none' : '1px solid #e2e8f0' 
+                        borderBottom: idx === schema[tableName].length - 1 ? 'none' : '1px solid #e2e8f0' 
                      }}>
                         <span style={{ 
                           fontWeight: isPK ? 'bold' : 'normal', 

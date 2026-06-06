@@ -1,0 +1,11 @@
+id,first_name,last_name,email,signup_date,lifetime_value,loyalty_points
+1,John,Doe,john.doe@example.com,2023-01-15,1250.50,150
+2,Jane,Smith,jane.smith@example.com,2023-02-20,3400.75,420
+3,Michael,Johnson,mjohnson@example.com,2022-11-05,890.00,85
+4,Emily,Davis,emily.d@example.com,2023-05-12,5600.25,750
+5,William,Brown,wb1985@example.com,2021-09-30,120.00,10
+6,Olivia,Wilson,olivia.w@example.com,2023-08-01,950.50,110
+7,James,Taylor,jtaylor@example.com,2022-03-15,4100.00,500
+8,Sophia,Anderson,sophia_a@example.com,2023-10-10,300.20,35
+9,Benjamin,Thomas,ben.t@example.com,2022-07-22,2150.80,260
+10,Mia,Jackson,mia.j@example.com,2023-11-05,450.00,60

@@ -1,5 +1,7 @@
 import { useState } from 'react';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+
 /**
  * DeptMetricsReport – "Department Metrics" pre-built report card.
  * Props:
@@ -8,30 +10,32 @@ import { useState } from 'react';
 function DeptMetricsReport({ onResults }) {
   const [dept, setDept] = useState('');
 
-  function handleRun() {
+  async function handleRun() {
     const selectedDept = dept || 'all';
-    const formattedDept = selectedDept.charAt(0).toUpperCase() + selectedDept.slice(1);
+    
+    const state = {
+      table: 'employees',
+      selectedColumns: ['department_id'],
+      filters: selectedDept !== 'all' ? [{ field: 'department_id', operator: '=', value: selectedDept }] : [],
+      groupByField: 'department_id',
+      aggregateFunc: 'COUNT',
+      aggregateField: 'id'
+    };
 
-    const sql =
-      `SELECT department_id, COUNT(*) as employee_count\nFROM employees` +
-      (selectedDept !== 'all' ? `\nWHERE department_id = '${selectedDept}'` : '') +
-      `\nGROUP BY department_id`;
-
-    const headers = ['department_id (Label)', 'employee_count'];
-    let rows;
-
-    if (selectedDept !== 'all') {
-      rows = [{ 'department_id (Label)': formattedDept, employee_count: Math.floor(Math.random() * 20) + 5 }];
-    } else {
-      rows = [
-        { 'department_id (Label)': 'Engineering', employee_count: 45 },
-        { 'department_id (Label)': 'Sales', employee_count: 20 },
-        { 'department_id (Label)': 'Marketing', employee_count: 15 },
-        { 'department_id (Label)': 'Human Resources', employee_count: 5 },
-      ];
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/query`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(state)
+      });
+      const data = await res.json();
+      
+      const headers = ['department_id', 'count_id'];
+      onResults({ sql: data.sql, headers, rows: data.rows });
+    } catch (err) {
+      console.error(err);
+      alert('Error running report');
     }
-
-    onResults({ sql, headers, rows });
   }
 
   return (
