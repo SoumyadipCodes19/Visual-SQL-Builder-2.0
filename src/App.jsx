@@ -6,6 +6,7 @@ import ERDiagram from './components/ERDiagram';
 import QueryHistory from './components/QueryHistory';
 import ReportsSection from './components/ReportsSection';
 import Login from './components/Login';
+import DatasetManager from './components/DatasetManager';
 import { buildSQL } from './utils/queryUtils';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
