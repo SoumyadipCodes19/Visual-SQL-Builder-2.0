@@ -2,7 +2,6 @@
  * Header – simple site header with feature toggles.
  */
 import DatasetManager from './DatasetManager';
-import './Header.css';
 
 function Header({ onToggleERD, onSchemaRefresh, onLogout }) {
   return (
