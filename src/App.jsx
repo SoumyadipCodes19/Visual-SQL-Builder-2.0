@@ -5,6 +5,7 @@ import ResultsPanel from './components/ResultsPanel';
 import ERDiagram from './components/ERDiagram';
 import QueryHistory from './components/QueryHistory';
 import ReportsSection from './components/ReportsSection';
+import Login from './components/Login';
 import { buildSQL } from './utils/queryUtils';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
@@ -22,6 +23,7 @@ const INITIAL_STATE = {
 };
 
 function App() {
+  const [authToken, setAuthToken] = useState(localStorage.getItem('auth_token') || null);
   const [schema, setSchema] = useState({});
   const [table, setTable] = useState('');
   const [selectedColumns, setSelectedColumns] = useState(new Set());
@@ -39,7 +41,9 @@ function App() {
 
   const fetchSchema = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/schema`);
+      const res = await fetch(`${API_BASE_URL}/api/schema`, {
+        headers: { 'Authorization': `Bearer ${authToken}` }
+      });
       const data = await res.json();
       setSchema(data);
     } catch (err) {
@@ -48,8 +52,21 @@ function App() {
   };
 
   useEffect(() => {
-    fetchSchema();
-  }, []);
+    if (authToken) {
+      fetchSchema();
+    }
+  }, [authToken]);
+
+  const handleLoginSuccess = (credentialResponse) => {
+    const token = credentialResponse.credential;
+    localStorage.setItem('auth_token', token);
+    setAuthToken(token);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('auth_token');
+    setAuthToken(null);
+  };
 
   // --- Handlers ---
 
@@ -101,8 +118,11 @@ function App() {
     try {
       const res = await fetch(`${API_BASE_URL}/api/query`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(state),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify(state)
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Query failed');
@@ -143,9 +163,14 @@ function App() {
     setResults({ visible: true, sql, headers, rows });
   }
 
+  if (!authToken) {
+    return <Login onLoginSuccess={handleLoginSuccess} />;
+  }
+
   return (
-    <>
+    <div className="app-container">
       <Header 
+        onLogout={handleLogout}
         onToggleERD={() => setShowERD(!showERD)} 
         onSchemaRefresh={fetchSchema}
       />
@@ -154,6 +179,7 @@ function App() {
         <div className="grid-container">
           {/* Left Sidebar */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            <DatasetManager schema={schema} onUploadSuccess={fetchSchema} authToken={authToken} />
             <QueryBuilder
               table={table}
               schema={schema}
@@ -181,11 +207,11 @@ function App() {
           {/* Right Main Area */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
             <ResultsPanel results={results} />
-            <ReportsSection onResults={handleReportResults} />
+            <ReportsSection schema={schema} authToken={authToken} onResults={handleReportResults} />
           </div>
         </div>
       </main>
-    </>
+    </div>
   );
 }
 

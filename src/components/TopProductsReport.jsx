@@ -10,7 +10,7 @@ const CATEGORIES = ['Electronics', 'Furniture', 'Office'].sort();
  * Props:
  *   onResults – ({ sql, headers, rows }) => void
  */
-function TopProductsReport({ onResults }) {
+function TopProductsReport({ authToken, onResults }) {
   const [category, setCategory] = useState(CATEGORIES[0] ?? '');
   const [limit, setLimit]       = useState(5);
 
@@ -30,7 +30,10 @@ function TopProductsReport({ onResults }) {
     try {
       const res = await fetch(`${API_BASE_URL}/api/query`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
         body: JSON.stringify(state)
       });
       const data = await res.json();

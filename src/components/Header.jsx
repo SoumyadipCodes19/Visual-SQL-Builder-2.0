@@ -2,8 +2,9 @@
  * Header – simple site header with feature toggles.
  */
 import DatasetManager from './DatasetManager';
+import './Header.css';
 
-function Header({ onToggleERD, onSchemaRefresh }) {
+function Header({ onToggleERD, onSchemaRefresh, onLogout }) {
   return (
     <header className="header">
       <div className="header-container" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -40,6 +41,14 @@ function Header({ onToggleERD, onSchemaRefresh }) {
           >
             📊 Schema ERD
           </button>
+          {onLogout && (
+            <button 
+              onClick={onLogout} 
+              style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', background: 'transparent', cursor: 'pointer', fontWeight: 'bold' }}
+            >
+              Sign Out
+            </button>
+          )}
         </div>
       </div>
     </header>

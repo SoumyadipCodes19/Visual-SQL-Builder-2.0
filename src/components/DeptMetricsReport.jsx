@@ -7,7 +7,7 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
  * Props:
  *   onResults – ({ sql, headers, rows }) => void
  */
-function DeptMetricsReport({ onResults }) {
+function DeptMetricsReport({ authToken, onResults }) {
   const [dept, setDept] = useState('');
 
   async function handleRun() {
@@ -25,7 +25,10 @@ function DeptMetricsReport({ onResults }) {
     try {
       const res = await fetch(`${API_BASE_URL}/api/query`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
         body: JSON.stringify(state)
       });
       const data = await res.json();

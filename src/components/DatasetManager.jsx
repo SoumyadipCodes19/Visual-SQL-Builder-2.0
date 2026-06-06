@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
-function DatasetManager({ onUploadSuccess }) {
+function DatasetManager({ onUploadSuccess, authToken }) {
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState('');
   const fileInputRef = useRef(null);
@@ -20,6 +20,9 @@ function DatasetManager({ onUploadSuccess }) {
     try {
       const response = await fetch(`${API_BASE_URL}/api/upload-csv`, {
         method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${authToken}`
+        },
         body: formData,
       });
       

@@ -5,6 +5,7 @@ import csv from 'csv-parser';
 import fs from 'fs';
 import path from 'path';
 import db from './db.js';
+import { verifyToken } from './middleware/auth.js';
 import 'dotenv/config';
 
 const app = express();
@@ -16,6 +17,12 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 app.use(express.json());
+
+// Apply authentication middleware to all /api routes
+app.use('/api', verifyToken);
+
+// Global mock tables everyone shares
+const GLOBAL_TABLES = ['employees', 'departments', 'products'];
 
 const upload = multer({ dest: 'uploads/' });
 
@@ -64,17 +71,31 @@ app.get('/api/schema', async (req, res) => {
     }
 
     const schema = {};
+    const userPrefix = `u_${req.user.userId}_`;
 
-    for (const tableName of tables) {
+    for (const physicalName of tables) {
+      let displayName = physicalName;
+      
+      if (physicalName.startsWith('u_')) {
+        if (physicalName.startsWith(userPrefix)) {
+          displayName = physicalName.substring(userPrefix.length);
+        } else {
+          continue; // Skip tables belonging to other users
+        }
+      } else if (!GLOBAL_TABLES.includes(physicalName)) {
+         // It's not a known global table and not a user table (maybe an old artifact), skip it
+         continue;
+      }
+
       if (isPostgres) {
-        const result = await db.raw("SELECT column_name, data_type FROM information_schema.columns WHERE table_name = ?", [tableName]);
-        schema[tableName] = result.rows.map(c => ({
+        const result = await db.raw("SELECT column_name, data_type FROM information_schema.columns WHERE table_name = ?", [physicalName]);
+        schema[displayName] = result.rows.map(c => ({
           name: c.column_name,
           type: c.data_type.toLowerCase()
         }));
       } else {
-        const cols = await db.raw(`PRAGMA table_info('${tableName}')`);
-        schema[tableName] = cols.map(c => ({
+        const cols = await db.raw(`PRAGMA table_info('${physicalName}')`);
+        schema[displayName] = cols.map(c => ({
           name: c.name,
           type: c.type.toLowerCase()
         }));
@@ -97,7 +118,13 @@ app.post('/api/query', async (req, res) => {
       return res.status(400).json({ error: 'Table is required' });
     }
 
-    let query = db(table);
+    // Determine correct physical table name
+    let physicalTable = table;
+    if (!GLOBAL_TABLES.includes(table)) {
+      physicalTable = `u_${req.user.userId}_${table}`;
+    }
+
+    let query = db(physicalTable);
 
     // Filter Building
     if (filters && filters.length > 0) {
@@ -188,21 +215,24 @@ app.post('/api/upload-csv', upload.single('file'), async (req, res) => {
           return res.status(400).json({ error: 'CSV is empty' });
         }
 
-      // Generate table name from filename
-      let tableName = req.file.originalname.replace('.csv', '').replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
-      if (!tableName) tableName = 'table_' + Date.now();
+      // Generate table name from filename and isolate by user
+      let baseName = req.file.originalname.replace('.csv', '').replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+      if (!baseName) baseName = 'table_' + Date.now();
+      
+      let physicalTableName = `u_${req.user.userId}_${baseName}`;
       
       // Prevent overwriting existing tables
       const isPostgres = db.client.config.client === 'pg';
       let existing = [];
       if (isPostgres) {
-        const res = await db.raw("SELECT tablename FROM pg_catalog.pg_tables WHERE schemaname = 'public' AND tablename = ?", [tableName]);
+        const res = await db.raw("SELECT tablename FROM pg_catalog.pg_tables WHERE schemaname = 'public' AND tablename = ?", [physicalTableName]);
         existing = res.rows;
       } else {
-        existing = await db.raw("SELECT name FROM sqlite_master WHERE type='table' AND name=?", [tableName]);
+        existing = await db.raw("SELECT name FROM sqlite_master WHERE type='table' AND name=?", [physicalTableName]);
       }
       if (existing.length > 0) {
-        tableName = tableName + '_' + Date.now();
+        baseName = baseName + '_' + Date.now();
+        physicalTableName = `u_${req.user.userId}_${baseName}`;
       }
 
       // Detect column types based on first 50 rows
@@ -215,7 +245,7 @@ app.post('/api/upload-csv', upload.single('file'), async (req, res) => {
       }
 
       // Create Table
-      await db.schema.createTable(tableName, (table) => {
+      await db.schema.createTable(physicalTableName, (table) => {
         for (const h of headers) {
           const type = colTypes[h];
           if (type === 'integer') table.integer(h);
@@ -235,10 +265,10 @@ app.post('/api/upload-csv', upload.single('file'), async (req, res) => {
           }
           return cleanRow;
         });
-        await db(tableName).insert(chunk);
+        await db(physicalTableName).insert(chunk);
       }
 
-      res.json({ success: true, tableName, rowCount: results.length });
+      res.json({ success: true, tableName: baseName, rowCount: results.length });
       } catch (err) {
         console.error('CSV upload error:', err);
         res.status(500).json({ error: 'Failed to process CSV', details: err.message });

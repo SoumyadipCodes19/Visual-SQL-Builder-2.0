@@ -6,13 +6,13 @@ import TopProductsReport from './TopProductsReport';
  * Props:
  *   onResults – ({ sql, headers, rows }) => void
  */
-function ReportsSection({ onResults }) {
+function ReportsSection({ schema, authToken, onResults }) {
   return (
     <div className="reports-section">
       <h2 className="section-title">Reports</h2>
       <div className="reports-grid">
-        <DeptMetricsReport onResults={onResults} />
-        <TopProductsReport onResults={onResults} />
+        <DeptMetricsReport authToken={authToken} onResults={onResults} />
+        <TopProductsReport authToken={authToken} onResults={onResults} />
       </div>
     </div>
   );
