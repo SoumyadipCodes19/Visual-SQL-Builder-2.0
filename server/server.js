@@ -181,11 +181,12 @@ app.post('/api/upload-csv', upload.single('file'), async (req, res) => {
     })
     .on('data', (data) => results.push(data))
     .on('end', async () => {
-      fs.unlinkSync(req.file.path); // remove temp file
+      try {
+        if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path); // remove temp file
 
-      if (results.length === 0) {
-        return res.status(400).json({ error: 'CSV is empty' });
-      }
+        if (results.length === 0) {
+          return res.status(400).json({ error: 'CSV is empty' });
+        }
 
       // Generate table name from filename
       let tableName = req.file.originalname.replace('.csv', '').replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
@@ -227,11 +228,21 @@ app.post('/api/upload-csv', upload.single('file'), async (req, res) => {
       // Insert Data (Chunked)
       const chunkSize = 100;
       for (let i = 0; i < results.length; i += chunkSize) {
-        const chunk = results.slice(i, i + chunkSize);
+        const chunk = results.slice(i, i + chunkSize).map(row => {
+          const cleanRow = {};
+          for (const key in row) {
+            cleanRow[key] = row[key] === '' ? null : row[key];
+          }
+          return cleanRow;
+        });
         await db(tableName).insert(chunk);
       }
 
       res.json({ success: true, tableName, rowCount: results.length });
+      } catch (err) {
+        console.error('CSV upload error:', err);
+        res.status(500).json({ error: 'Failed to process CSV', details: err.message });
+      }
     })
     .on('error', (err) => {
        fs.unlinkSync(req.file.path);
