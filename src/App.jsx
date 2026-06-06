@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import Header from './components/Header';
 import QueryBuilder from './components/QueryBuilder';
 import ResultsPanel from './components/ResultsPanel';
+import ERDiagram from './components/ERDiagram';
+import QueryHistory from './components/QueryHistory';
 import ReportsSection from './components/ReportsSection';
 import { buildSQL } from './utils/queryUtils';
 
