@@ -34,10 +34,10 @@ function detectColumnType(values) {
     if (isNumeric && isNaN(Number(val))) {
       isNumeric = false;
     }
-    if (isDate && isNaN(Date.parse(val))) {
-      // Very basic date check. If it parses as a date but is just a number, it might be a false positive
-      // Real date validation might need moment or stricter regex, but this works for basic cases
-      if (/^-?\d+$/.test(val)) {
+    if (isDate) {
+      if (isNaN(Date.parse(val))) {
+        isDate = false;
+      } else if (/^-?\d+$/.test(val)) {
         isDate = false; // Don't treat raw integers as dates
       }
     }
